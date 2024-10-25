@@ -42,36 +42,55 @@ if(IdEmpresa > 0)
     };
     long IdCliente = await GuardarCliente(modelCliente);
 
-    var descriptionNode = doc.SelectSingleNode("//cac:Attachment/cac:ExternalReference/cbc:Description", GetNamespaceManager(doc));
-    if (descriptionNode != null)
+    if(IdCliente > 0)
     {
-        string innerXml = descriptionNode.InnerText;
-        if (innerXml.StartsWith("<![CDATA[") && innerXml.EndsWith("]]>"))
+        FacturaModel modelFactura = new FacturaModel
         {
-            innerXml = innerXml.Substring(9, innerXml.Length - 12);
-        }
-
-        var innerDoc = new XmlDocument();
-
-        innerDoc.LoadXml(innerXml);
-
-        // Procesar el nuevo documento XML para extraer los detalles de los productos
-        XmlNodeList productNodes = innerDoc.SelectNodes("//cac:InvoiceLine", GetNamespaceManager(doc));
-
-        foreach (XmlNode productNode in productNodes)
+            NumberFacturaElectronica = parentDocumentID,
+            IdEmpresa = IdEmpresa,
+            IdCliente = IdCliente,
+            FechaFactura= Convert.ToDateTime(issueDate)
+        };
+        long IdFactura = await GuardarFactura(modelFactura);
+        var descriptionNode = doc.SelectSingleNode("//cac:Attachment/cac:ExternalReference/cbc:Description", GetNamespaceManager(doc));
+        if (descriptionNode != null)
         {
-            string codigoProducto = productNode.SelectSingleNode("cac:Item/cac:SellersItemIdentification/cbc:ID", GetNamespaceManager(doc))?.InnerText ??
-                            productNode.SelectSingleNode("cac:Item/cac:BuyersItemIdentification/cbc:ID", GetNamespaceManager(doc))?.InnerText ??
-                            productNode.SelectSingleNode("cac:Item/cac:StandardItemIdentification/cbc:ID", GetNamespaceManager(doc))?.InnerText ??
-                             "N/A";
-            string descripcionProducto = productNode.SelectSingleNode("cac:Item/cbc:Description", GetNamespaceManager(doc))?.InnerText ?? "N/A";
-            string valorProductoStr = productNode.SelectSingleNode("cbc:LineExtensionAmount", GetNamespaceManager(doc))?.InnerText ?? "0";
-            string impuestoStr = productNode.SelectSingleNode("cac:TaxTotal/cbc:TaxAmount", GetNamespaceManager(doc))?.InnerText ?? "0";
-            string cantidadStr = productNode.SelectSingleNode("cbc:InvoicedQuantity", GetNamespaceManager(doc))?.InnerText ?? "0";
-            string priceAmountStr = productNode.SelectSingleNode("cac:Price/cbc:PriceAmount", GetNamespaceManager(doc))?.InnerText ?? "0";
+            string innerXml = descriptionNode.InnerText;
+            if (innerXml.StartsWith("<![CDATA[") && innerXml.EndsWith("]]>"))
+            {
+                innerXml = innerXml.Substring(9, innerXml.Length - 12);
+            }
 
+            var innerDoc = new XmlDocument();
+
+            innerDoc.LoadXml(innerXml);
+
+            // Procesar el nuevo documento XML para extraer los detalles de los productos
+            XmlNodeList productNodes = innerDoc.SelectNodes("//cac:InvoiceLine", GetNamespaceManager(doc));
+
+            foreach (XmlNode productNode in productNodes)
+            {
+                string codigoProducto = productNode.SelectSingleNode("cac:Item/cac:SellersItemIdentification/cbc:ID", GetNamespaceManager(doc))?.InnerText ??
+                                productNode.SelectSingleNode("cac:Item/cac:BuyersItemIdentification/cbc:ID", GetNamespaceManager(doc))?.InnerText ??
+                                productNode.SelectSingleNode("cac:Item/cac:StandardItemIdentification/cbc:ID", GetNamespaceManager(doc))?.InnerText ??
+                                 "N/A";
+                string descripcionProducto = productNode.SelectSingleNode("cac:Item/cbc:Description", GetNamespaceManager(doc))?.InnerText ?? "N/A";
+                string valorProductoStr = productNode.SelectSingleNode("cbc:LineExtensionAmount", GetNamespaceManager(doc))?.InnerText ?? "0";
+                string impuestoStr = productNode.SelectSingleNode("cac:TaxTotal/cbc:TaxAmount", GetNamespaceManager(doc))?.InnerText ?? "0";
+                string cantidadStr = productNode.SelectSingleNode("cbc:InvoicedQuantity", GetNamespaceManager(doc))?.InnerText ?? "0";
+                string priceAmountStr = productNode.SelectSingleNode("cac:Price/cbc:PriceAmount", GetNamespaceManager(doc))?.InnerText ?? "0";
+
+                ProductoModel modelProducto = new ProductoModel
+                {
+                    CodigoProducto = codigoProducto,
+                    DescripcionProducto = descripcionProducto
+                };
+                long IdProducto= await GuardarProducto(modelProducto);
+            }
         }
     }
+
+    
 }
 
 
@@ -98,5 +117,15 @@ async Task<long> GuardarCliente(ClienteModel model)
 {
     ClienteBL clienteBL = new ClienteBL();
     return await clienteBL.InsertUpdateCliente(model);
+}
+async Task<long> GuardarFactura(FacturaModel model)
+{
+    FacturaBL facturaBL = new FacturaBL();
+    return await facturaBL.InsertFactura(model);
+}
+async Task<long> GuardarProducto(ProductoModel model)
+{
+    ProductoBL productoBL = new ProductoBL();
+    return await productoBL.InsertProducto(model);
 }
 
