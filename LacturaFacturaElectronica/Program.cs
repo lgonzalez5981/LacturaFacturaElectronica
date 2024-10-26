@@ -8,11 +8,43 @@ string xmlFilePath = "C:\\Users\\WA\\OneDrive\\Desktop\\ad0890900841027247120241
 //string xmlFilePath = "C:\\Users\\WA\\OneDrive\\Desktop\\ad090031975302724524520240728120430177\\ad090031975302724524520240728120430177.xml";
 XmlDocument doc = new XmlDocument();
 doc.Load(xmlFilePath);
+// Crear el NamespaceManager para manejar los prefijos del XML
+XmlNamespaceManager nsmgr = new XmlNamespaceManager(doc.NameTable);
+nsmgr.AddNamespace("cbc", "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2");
 
-// Extraer valores del XML
-//string nitEmpresa = doc.SelectSingleNode("//cac:AccountingSupplierParty/cac:Party/cac:PartyIdentification/cbc:ID", GetNamespaceManager(doc)).InnerText;
-// Extraer el contenido del nodo <cbc:Description> que contiene el XML del detalle
-string issueDate = doc.SelectSingleNode("//cbc:IssueDate", GetNamespaceManager(doc))?.InnerText ?? "N/A";
+// Obtener el contenido del nodo cbc:Description que contiene el CDATA
+string descriptionContent = doc.SelectSingleNode("//cbc:Description", nsmgr)?.InnerText ?? string.Empty;
+string issueDateTime = "";
+if (!string.IsNullOrEmpty(descriptionContent))
+{
+    // Cargar el XML embebido dentro del CDATA
+    XmlDocument embeddedXml = new XmlDocument();
+    embeddedXml.LoadXml(descriptionContent);
+
+    // Crear otro NamespaceManager para manejar los prefijos del XML embebido
+    XmlNamespaceManager embeddedNsmgr = new XmlNamespaceManager(embeddedXml.NameTable);
+    embeddedNsmgr.AddNamespace("cbc", "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2");
+
+    // Extraer la fecha de compra (FecFac) y la hora de compra (HorFac) del XML embebido
+    string fechaCompra = embeddedXml.SelectSingleNode("//cbc:Note[contains(text(),'FecFac')]", embeddedNsmgr)?.InnerText ?? "N/A";
+    string horaCompra = embeddedXml.SelectSingleNode("//cbc:Note[contains(text(),'HorFac')]", embeddedNsmgr)?.InnerText ?? "00:00:00-05:00";
+
+    // Extraer los valores de FecFac y HorFac usando expresiones regulares
+    var fecFacMatch = System.Text.RegularExpressions.Regex.Match(fechaCompra, @"FecFac: (\d{4}-\d{2}-\d{2})");
+    var horFacMatch = System.Text.RegularExpressions.Regex.Match(horaCompra, @"HorFac: (\d{2}:\d{2}:\d{2}-\d{2}:\d{2})");
+
+    if (fecFacMatch.Success && horFacMatch.Success)
+    {
+        string fecha = fecFacMatch.Groups[1].Value;
+        string hora = horFacMatch.Groups[1].Value;
+
+        // Combinar fecha y hora
+        issueDateTime = fecha + " " + hora;
+
+    }
+
+}
+//string issueDate = doc.SelectSingleNode("//cbc:IssueDate", GetNamespaceManager(doc))?.InnerText ?? "N/A";
 string customerName = doc.SelectSingleNode("//cac:ReceiverParty/cac:PartyTaxScheme/cbc:RegistrationName", GetNamespaceManager(doc))?.InnerText ?? "N/A";
 string customerID = doc.SelectSingleNode("//cac:ReceiverParty/cac:PartyTaxScheme/cbc:CompanyID", GetNamespaceManager(doc))?.InnerText ?? "N/A";
 
@@ -32,7 +64,7 @@ EmpresaModel model = new EmpresaModel
 };
 long IdEmpresa = await GuardarEmpresa(model);
 
-if(IdEmpresa > 0)
+if (IdEmpresa > 0)
 {
     ClienteModel modelCliente = new ClienteModel
     {
@@ -42,14 +74,14 @@ if(IdEmpresa > 0)
     };
     long IdCliente = await GuardarCliente(modelCliente);
 
-    if(IdCliente > 0)
+    if (IdCliente > 0)
     {
         FacturaModel modelFactura = new FacturaModel
         {
             NumberFacturaElectronica = parentDocumentID,
             IdEmpresa = IdEmpresa,
             IdCliente = IdCliente,
-            FechaFactura= Convert.ToDateTime(issueDate)
+            FechaFactura = Convert.ToDateTime(issueDateTime)
         };
         long IdFactura = await GuardarFactura(modelFactura);
         var descriptionNode = doc.SelectSingleNode("//cac:Attachment/cac:ExternalReference/cbc:Description", GetNamespaceManager(doc));
@@ -85,12 +117,23 @@ if(IdEmpresa > 0)
                     CodigoProducto = codigoProducto,
                     DescripcionProducto = descripcionProducto
                 };
-                long IdProducto= await GuardarProducto(modelProducto);
+                long IdProducto = await GuardarProducto(modelProducto);
+
+                DetalleFacturaModel modelDetalle = new DetalleFacturaModel
+                {
+                    IdProducto = IdProducto,
+                    IdFactura = IdFactura,
+                    Cantidad = (int)Math.Floor(decimal.Parse(cantidadStr)),
+                    ValorUnitario = Convert.ToDouble(valorProductoStr),
+                    ValorTotal = Convert.ToDouble(priceAmountStr),
+                    ValorImpuesto = Convert.ToDouble(impuestoStr)
+                };
+                long IdDetalleFactura= await GuardarDetalleFactura(modelDetalle);
             }
         }
     }
 
-    
+
 }
 
 
@@ -127,5 +170,10 @@ async Task<long> GuardarProducto(ProductoModel model)
 {
     ProductoBL productoBL = new ProductoBL();
     return await productoBL.InsertProducto(model);
+}
+async Task<long> GuardarDetalleFactura(DetalleFacturaModel model)
+{
+    FacturaBL facturaBL = new FacturaBL();
+    return await facturaBL.InsertDetalleFactura(model);
 }
 

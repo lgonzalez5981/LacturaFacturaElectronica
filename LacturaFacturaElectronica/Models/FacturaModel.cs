@@ -13,4 +13,13 @@ namespace LacturaFacturaElectronica.Models
         public long IdCliente { get; set; }
         public DateTime FechaFactura { get; set; }
     }
+    public class DetalleFacturaModel
+    {
+        public long IdProducto { get; set; }
+        public long IdFactura { get; set; }
+        public int Cantidad { get; set; }
+        public double ValorUnitario { get; set; }
+        public double ValorTotal { get; set; }
+        public double ValorImpuesto { get; set; }
+    }
 }
