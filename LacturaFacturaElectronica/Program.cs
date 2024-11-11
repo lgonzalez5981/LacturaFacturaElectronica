@@ -3,138 +3,151 @@ using LacturaFacturaElectronica.Models;
 using System.Xml;
 
 string connectionString = "Integrated Security=SSPI;Persist Security Info=False;Initial Catalog=ReadingFactura;Data Source=WA-LUISGONZALEZ";
-//string xmlFilePath = "C:\\Users\\WA\\OneDrive\\Desktop\\081100760102124FAU7099496\\ad081100760102124FAU7099496.xml";
-string xmlFilePath = "C:\\Users\\WA\\OneDrive\\Desktop\\ad0890900841027247120241004012124370\\ad0890900841027247120241004012124370.xml";
-//string xmlFilePath = "C:\\Users\\WA\\OneDrive\\Desktop\\ad090031975302724524520240728120430177\\ad090031975302724524520240728120430177.xml";
-XmlDocument doc = new XmlDocument();
-doc.Load(xmlFilePath);
-// Crear el NamespaceManager para manejar los prefijos del XML
-XmlNamespaceManager nsmgr = new XmlNamespaceManager(doc.NameTable);
-nsmgr.AddNamespace("cbc", "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2");
+string folderPath = "C:\\Users\\WA\\OneDrive\\Desktop\\FActuras electrnoicas\\";  // Ruta de la carpeta que contiene los archivos XML
 
-// Obtener el contenido del nodo cbc:Description que contiene el CDATA
-string descriptionContent = doc.SelectSingleNode("//cbc:Description", nsmgr)?.InnerText ?? string.Empty;
-string issueDateTime = "";
-if (!string.IsNullOrEmpty(descriptionContent))
+DirectoryInfo directory = new DirectoryInfo(folderPath);
+FileInfo[] xmlFiles = directory.GetFiles("*.xml");
+
+foreach (FileInfo file in xmlFiles)
 {
-    // Cargar el XML embebido dentro del CDATA
-    XmlDocument embeddedXml = new XmlDocument();
-    embeddedXml.LoadXml(descriptionContent);
+    XmlDocument doc = new XmlDocument();
+    doc.Load(file.FullName);
 
-    // Crear otro NamespaceManager para manejar los prefijos del XML embebido
-    XmlNamespaceManager embeddedNsmgr = new XmlNamespaceManager(embeddedXml.NameTable);
-    embeddedNsmgr.AddNamespace("cbc", "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2");
+    XmlNamespaceManager nsmgr = new XmlNamespaceManager(doc.NameTable);
+    nsmgr.AddNamespace("cbc", "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2");
 
-    // Extraer la fecha de compra (FecFac) y la hora de compra (HorFac) del XML embebido
-    string fechaCompra = embeddedXml.SelectSingleNode("//cbc:Note[contains(text(),'FecFac')]", embeddedNsmgr)?.InnerText ?? "N/A";
-    string horaCompra = embeddedXml.SelectSingleNode("//cbc:Note[contains(text(),'HorFac')]", embeddedNsmgr)?.InnerText ?? "00:00:00-05:00";
-
-    // Extraer los valores de FecFac y HorFac usando expresiones regulares
-    var fecFacMatch = System.Text.RegularExpressions.Regex.Match(fechaCompra, @"FecFac: (\d{4}-\d{2}-\d{2})");
-    var horFacMatch = System.Text.RegularExpressions.Regex.Match(horaCompra, @"HorFac: (\d{2}:\d{2}:\d{2}-\d{2}:\d{2})");
-
-    if (fecFacMatch.Success && horFacMatch.Success)
+    // Obtener el contenido del nodo cbc:Description que contiene el CDATA
+    string descriptionContent = doc.SelectSingleNode("//cbc:Description", nsmgr)?.InnerText ?? string.Empty;
+    string issueDateTime = "";
+    if (!string.IsNullOrEmpty(descriptionContent))
     {
-        string fecha = fecFacMatch.Groups[1].Value;
-        string hora = horFacMatch.Groups[1].Value;
+        // Cargar el XML embebido dentro del CDATA
+        XmlDocument embeddedXml = new XmlDocument();
+        embeddedXml.LoadXml(descriptionContent);
 
-        // Combinar fecha y hora
-        issueDateTime = fecha + " " + hora;
+        // Crear otro NamespaceManager para manejar los prefijos del XML embebido
+        XmlNamespaceManager embeddedNsmgr = new XmlNamespaceManager(embeddedXml.NameTable);
+        embeddedNsmgr.AddNamespace("cbc", "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2");
+
+        // Extraer la fecha de compra (FecFac) y la hora de compra (HorFac) del XML embebido
+        string fechaCompra = embeddedXml.SelectSingleNode("//cbc:Note[contains(text(),'FecFac')]", embeddedNsmgr)?.InnerText ?? "N/A";
+        string horaCompra = embeddedXml.SelectSingleNode("//cbc:Note[contains(text(),'HorFac')]", embeddedNsmgr)?.InnerText ?? "00:00:00-05:00";
+
+        // Extraer los valores de FecFac y HorFac usando expresiones regulares
+        var fecFacMatch = System.Text.RegularExpressions.Regex.Match(fechaCompra, @"FecFac: (\d{4}-\d{2}-\d{2})");
+        var horFacMatch = System.Text.RegularExpressions.Regex.Match(horaCompra, @"HorFac: (\d{2}:\d{2}:\d{2}-\d{2}:\d{2})");
+
+        if (fecFacMatch.Success && horFacMatch.Success)
+        {
+            string fecha = fecFacMatch.Groups[1].Value;
+            string hora = horFacMatch.Groups[1].Value;
+
+            // Combinar fecha y hora
+            issueDateTime = fecha + " " + hora;
+
+        }
 
     }
+    //string issueDate = doc.SelectSingleNode("//cbc:IssueDate", GetNamespaceManager(doc))?.InnerText ?? "N/A";
+    string customerName = doc.SelectSingleNode("//cac:ReceiverParty/cac:PartyTaxScheme/cbc:RegistrationName", GetNamespaceManager(doc))?.InnerText ?? "N/A";
+    string customerID = doc.SelectSingleNode("//cac:ReceiverParty/cac:PartyTaxScheme/cbc:CompanyID", GetNamespaceManager(doc))?.InnerText ?? "N/A";
 
-}
-//string issueDate = doc.SelectSingleNode("//cbc:IssueDate", GetNamespaceManager(doc))?.InnerText ?? "N/A";
-string customerName = doc.SelectSingleNode("//cac:ReceiverParty/cac:PartyTaxScheme/cbc:RegistrationName", GetNamespaceManager(doc))?.InnerText ?? "N/A";
-string customerID = doc.SelectSingleNode("//cac:ReceiverParty/cac:PartyTaxScheme/cbc:CompanyID", GetNamespaceManager(doc))?.InnerText ?? "N/A";
-
-string customerNIT = doc.SelectSingleNode("//cac:PartyTaxScheme/cbc:CompanyID", GetNamespaceManager(doc))?.InnerText ?? "N/A";
+    string customerNIT = doc.SelectSingleNode("//cac:PartyTaxScheme/cbc:CompanyID", GetNamespaceManager(doc))?.InnerText ?? "N/A";
 
 
-// Extraer el valor del ParentDocumentID
-string parentDocumentID = doc.SelectSingleNode("//cbc:ParentDocumentID", GetNamespaceManager(doc))?.InnerText ?? "N/A";
+    // Extraer el valor del ParentDocumentID
+    string parentDocumentID = doc.SelectSingleNode("//cbc:ParentDocumentID", GetNamespaceManager(doc))?.InnerText ?? "N/A";
 
-// Aquí se extrae el nombre de la empresa desde el nodo cac:PartyTaxScheme/cbc:RegistrationName
-string registrationName = doc.SelectSingleNode("//cac:PartyTaxScheme/cbc:RegistrationName", GetNamespaceManager(doc))?.InnerText ?? "N/A";
+    // Aquí se extrae el nombre de la empresa desde el nodo cac:PartyTaxScheme/cbc:RegistrationName
+    string registrationName = doc.SelectSingleNode("//cac:PartyTaxScheme/cbc:RegistrationName", GetNamespaceManager(doc))?.InnerText ?? "N/A";
 
-EmpresaModel model = new EmpresaModel
-{
-    DescripcionEmpresa = registrationName,
-    NitEmpresa = customerNIT
-};
-long IdEmpresa = await GuardarEmpresa(model);
-
-if (IdEmpresa > 0)
-{
-    ClienteModel modelCliente = new ClienteModel
+    EmpresaModel model = new EmpresaModel
     {
-        Identificacion = customerID,
-        NombreCliente = customerName,
-        IdEmpresa = IdEmpresa
+        DescripcionEmpresa = registrationName,
+        NitEmpresa = customerNIT
     };
-    long IdCliente = await GuardarCliente(modelCliente);
+    long IdEmpresa = await GuardarEmpresa(model);
 
-    if (IdCliente > 0)
+    if (IdEmpresa > 0)
     {
-        FacturaModel modelFactura = new FacturaModel
+        ClienteModel modelCliente = new ClienteModel
         {
-            NumberFacturaElectronica = parentDocumentID,
-            IdEmpresa = IdEmpresa,
-            IdCliente = IdCliente,
-            FechaFactura = Convert.ToDateTime(issueDateTime)
+            Identificacion = customerID,
+            NombreCliente = customerName,
+            IdEmpresa = IdEmpresa
         };
-        long IdFactura = await GuardarFactura(modelFactura);
-        var descriptionNode = doc.SelectSingleNode("//cac:Attachment/cac:ExternalReference/cbc:Description", GetNamespaceManager(doc));
-        if (descriptionNode != null)
+        long IdCliente = await GuardarCliente(modelCliente);
+
+        if (IdCliente > 0)
         {
-            string innerXml = descriptionNode.InnerText;
-            if (innerXml.StartsWith("<![CDATA[") && innerXml.EndsWith("]]>"))
+            FacturaModel modelFactura = new FacturaModel
             {
-                innerXml = innerXml.Substring(9, innerXml.Length - 12);
-            }
-
-            var innerDoc = new XmlDocument();
-
-            innerDoc.LoadXml(innerXml);
-
-            // Procesar el nuevo documento XML para extraer los detalles de los productos
-            XmlNodeList productNodes = innerDoc.SelectNodes("//cac:InvoiceLine", GetNamespaceManager(doc));
-
-            foreach (XmlNode productNode in productNodes)
+                NumberFacturaElectronica = parentDocumentID,
+                IdEmpresa = IdEmpresa,
+                IdCliente = IdCliente,
+                FechaFactura = Convert.ToDateTime(issueDateTime)
+            };
+            long IdFactura = await GuardarFactura(modelFactura);
+            var descriptionNode = doc.SelectSingleNode("//cac:Attachment/cac:ExternalReference/cbc:Description", GetNamespaceManager(doc));
+            if (descriptionNode != null)
             {
-                string codigoProducto = productNode.SelectSingleNode("cac:Item/cac:SellersItemIdentification/cbc:ID", GetNamespaceManager(doc))?.InnerText ??
-                                productNode.SelectSingleNode("cac:Item/cac:BuyersItemIdentification/cbc:ID", GetNamespaceManager(doc))?.InnerText ??
-                                productNode.SelectSingleNode("cac:Item/cac:StandardItemIdentification/cbc:ID", GetNamespaceManager(doc))?.InnerText ??
-                                 "N/A";
-                string descripcionProducto = productNode.SelectSingleNode("cac:Item/cbc:Description", GetNamespaceManager(doc))?.InnerText ?? "N/A";
-                string valorProductoStr = productNode.SelectSingleNode("cbc:LineExtensionAmount", GetNamespaceManager(doc))?.InnerText ?? "0";
-                string impuestoStr = productNode.SelectSingleNode("cac:TaxTotal/cbc:TaxAmount", GetNamespaceManager(doc))?.InnerText ?? "0";
-                string cantidadStr = productNode.SelectSingleNode("cbc:InvoicedQuantity", GetNamespaceManager(doc))?.InnerText ?? "0";
-                string priceAmountStr = productNode.SelectSingleNode("cac:Price/cbc:PriceAmount", GetNamespaceManager(doc))?.InnerText ?? "0";
-
-                ProductoModel modelProducto = new ProductoModel
+                string innerXml = descriptionNode.InnerText;
+                if (innerXml.StartsWith("<![CDATA[") && innerXml.EndsWith("]]>"))
                 {
-                    CodigoProducto = codigoProducto,
-                    DescripcionProducto = descripcionProducto
-                };
-                long IdProducto = await GuardarProducto(modelProducto);
+                    innerXml = innerXml.Substring(9, innerXml.Length - 12);
+                }
 
-                DetalleFacturaModel modelDetalle = new DetalleFacturaModel
+                var innerDoc = new XmlDocument();
+
+                innerDoc.LoadXml(innerXml);
+
+                // Procesar el nuevo documento XML para extraer los detalles de los productos
+                XmlNodeList productNodes = innerDoc.SelectNodes("//cac:InvoiceLine", GetNamespaceManager(doc));
+
+                foreach (XmlNode productNode in productNodes)
                 {
-                    IdProducto = IdProducto,
-                    IdFactura = IdFactura,
-                    Cantidad = (int)Math.Floor(decimal.Parse(cantidadStr)),
-                    ValorUnitario = Convert.ToDouble(valorProductoStr),
-                    ValorTotal = Convert.ToDouble(priceAmountStr),
-                    ValorImpuesto = Convert.ToDouble(impuestoStr)
-                };
-                long IdDetalleFactura= await GuardarDetalleFactura(modelDetalle);
+                    string codigoProducto = productNode.SelectSingleNode("cac:Item/cac:SellersItemIdentification/cbc:ID", GetNamespaceManager(doc))?.InnerText ??
+                                    productNode.SelectSingleNode("cac:Item/cac:BuyersItemIdentification/cbc:ID", GetNamespaceManager(doc))?.InnerText ??
+                                    productNode.SelectSingleNode("cac:Item/cac:StandardItemIdentification/cbc:ID", GetNamespaceManager(doc))?.InnerText ??
+                                     "N/A";
+                    string descripcionProducto = productNode.SelectSingleNode("cac:Item/cbc:Description", GetNamespaceManager(doc))?.InnerText ?? "N/A";
+                    string valorProductoStr = productNode.SelectSingleNode("cbc:LineExtensionAmount", GetNamespaceManager(doc))?.InnerText ?? "0";
+                    string impuestoStr = productNode.SelectSingleNode("cac:TaxTotal/cbc:TaxAmount", GetNamespaceManager(doc))?.InnerText ?? "0";
+                    string cantidadStr = productNode.SelectSingleNode("cbc:InvoicedQuantity", GetNamespaceManager(doc))?.InnerText ?? "0";
+                    string priceAmountStr = productNode.SelectSingleNode("cac:Price/cbc:PriceAmount", GetNamespaceManager(doc))?.InnerText ?? "0";
+
+                    ProductoModel modelProducto = new ProductoModel
+                    {
+                        CodigoProducto = codigoProducto,
+                        DescripcionProducto = descripcionProducto
+                    };
+                    long IdProducto = await GuardarProducto(modelProducto);
+
+                    DetalleFacturaModel modelDetalle = new DetalleFacturaModel
+                    {
+                        IdProducto = IdProducto,
+                        IdFactura = IdFactura,
+                        Cantidad = (int)Math.Floor(decimal.Parse(cantidadStr)),
+                        ValorUnitario = Convert.ToDouble(valorProductoStr),
+                        ValorTotal = Convert.ToDouble(priceAmountStr),
+                        ValorImpuesto = Convert.ToDouble(impuestoStr)
+                    };
+                    long IdDetalleFactura = await GuardarDetalleFactura(modelDetalle);
+                }
             }
         }
+
+
     }
-
-
+    file.Delete();
 }
+
+////string xmlFilePath = "C:\\Users\\WA\\OneDrive\\Desktop\\081100760102124FAU7099496\\ad081100760102124FAU7099496.xml";
+//string xmlFilePath = "C:\\Users\\WA\\OneDrive\\Desktop\\ad0890900841027247120241004012124370\\ad0890900841027247120241004012124370.xml";
+////string xmlFilePath = "C:\\Users\\WA\\OneDrive\\Desktop\\ad090031975302724524520240728120430177\\ad090031975302724524520240728120430177.xml";
+//XmlDocument doc = new XmlDocument();
+//doc.Load(xmlFilePath);
+// Crear el NamespaceManager para manejar los prefijos del XML
 
 
 
