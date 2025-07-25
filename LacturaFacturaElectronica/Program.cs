@@ -1,17 +1,28 @@
 ﻿using LacturaFacturaElectronica.BussinesLogic;
 using LacturaFacturaElectronica.Models;
+using System.Text;
 using System.Xml;
 
+string apiKey = "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"; // Reemplaza con tu API Key
 string connectionString = "Integrated Security=SSPI;Persist Security Info=False;Initial Catalog=ReadingFactura;Data Source=WA-LUISGONZALEZ";
-string folderPath = "C:\\Users\\WA\\OneDrive\\Desktop\\FActuras electrnoicas\\";  // Ruta de la carpeta que contiene los archivos XML
+string folderPath = "C:\\Users\\WA\\OneDrive\\Desktop\\FActuras electrnoicas\\";
 
 DirectoryInfo directory = new DirectoryInfo(folderPath);
 FileInfo[] xmlFiles = directory.GetFiles("*.xml");
+
+
 
 foreach (FileInfo file in xmlFiles)
 {
     XmlDocument doc = new XmlDocument();
     doc.Load(file.FullName);
+
+
+    string xmlText = doc.OuterXml;
+
+    //// Llamar a la API de OpenAI para extraer información clave
+    //string resultado = await ExtraerDatosFactura(apiKey, xmlText);
+    //Console.WriteLine($"Datos extraídos de OpenAI: {resultado}");
 
     XmlNamespaceManager nsmgr = new XmlNamespaceManager(doc.NameTable);
     nsmgr.AddNamespace("cbc", "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2");
@@ -151,8 +162,32 @@ foreach (FileInfo file in xmlFiles)
 
 
 
-Console.WriteLine("Datos insertados correctamente en la base de datos.");
+//Console.WriteLine("Datos insertados correctamente en la base de datos.");
+//static async Task<string> ExtraerDatosFactura(string apiKey, string xmlFactura)
+//{
+//    using (HttpClient client = new HttpClient())
+//    {
+//        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
 
+//        var requestBody = new
+//        {
+//            model = "gpt-3.5-turbo",
+//            messages = new[]
+//            {
+//                    new { role = "system", content = "Eres un asistente que extrae información clave de facturas electrónicas en XML." },
+//                    new { role = "user", content = $"Extrae la siguiente información de este XML:\n- Número de factura\n- Fecha de emisión\n- Total de la factura\n- Nombre del cliente\n- NIT del cliente\n\nFactura XML:\n{xmlFactura}" }
+//                }
+//        };
+
+//        string jsonRequest = Newtonsoft.Json.JsonConvert.SerializeObject(requestBody);
+//        var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
+
+//        HttpResponseMessage response = await client.PostAsync("https://api.openai.com/v1/chat/completions", content);
+//        string responseBody = await response.Content.ReadAsStringAsync();
+
+//        return responseBody;
+//    }
+//}
 
 static XmlNamespaceManager GetNamespaceManager(XmlDocument doc)
 {
